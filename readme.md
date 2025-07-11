@@ -94,7 +94,7 @@ npm run lint:fix   # Fix code style issues
 
 ## 🗄️ Database
 
-- **MongoDB UI**: http://localhost:8081 (Mongo Express)
+- **MongoDB UI**: http://localhost:8082 (Mongo Express)
 - **Default credentials**: admin / password123
 
 ## 🔑 Authentication

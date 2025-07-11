@@ -31,7 +31,7 @@ services:
       ME_CONFIG_BASICAUTH: false
       ME_CONFIG_MONGODB_ENABLE_ADMIN: true
     ports:
-      - "8081:8081"
+      - "8082:8081"  # Changed to 8082 to avoid conflict with react native
 
 # Named volumes for data persistence
 volumes:
