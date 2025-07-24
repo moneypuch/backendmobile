@@ -12,6 +12,8 @@ import { connectDB } from './config/database.js';
 import { swaggerOptions } from './config/swagger.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
+import semgRoutes from './routes/semg.js';
+import sessionRoutes from './routes/sessions.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { setupSocketIO } from './socket/socketHandler.js';
 import './config/env.js';
@@ -66,6 +68,8 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/semg', semgRoutes);
+app.use('/api/sessions', sessionRoutes);
 
 app.get('/swagger-export', (req, res) => {
   res.json(specs); // or whatever your swagger object is called

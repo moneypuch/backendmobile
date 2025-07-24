@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { config } from './env.js';
+import { createIndexes } from './indexes.js';
 
 export const connectDB = async () => {
   try {
@@ -13,6 +14,9 @@ export const connectDB = async () => {
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+
+    // Create indexes for optimal performance
+    await createIndexes();
 
     // Handle connection events
     mongoose.connection.on('error', (err) => {
