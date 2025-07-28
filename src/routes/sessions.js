@@ -3,10 +3,12 @@ import { body, query } from 'express-validator';
 import asyncHandler from 'express-async-handler';
 import Session from '../models/Session.js';
 import DataChunk from '../models/DataChunk.js';
+import DataProcessor from '../services/dataProcessor.js';
 import { protect } from '../middleware/auth.js';
 import { validateRequest } from '../middleware/validation.js';
 
 const router = express.Router();
+const dataProcessor = new DataProcessor();
 
 /**
  * @swagger
@@ -557,19 +559,41 @@ router.put('/:sessionId/end', protect, [
       });
     }
     
-    // End the session
-    session.endTime = endDateTime;
-    session.status = 'completed';
-    if (totalSamples !== undefined) {
-      session.totalSamples = totalSamples;
+    // Finalize session and create consolidated DataChunk
+    console.log(`Finalizing session ${sessionId}...`);
+    
+    try {
+      const finalizationResult = await dataProcessor.finalizeSession(sessionId, req.user._id);
+      
+      console.log(`Session ${sessionId} finalized successfully:`, finalizationResult);
+      
+      // Get the updated session
+      const updatedSession = await Session.findOne({ sessionId, userId: req.user._id });
+      
+      res.status(200).json({
+        success: true,
+        session: updatedSession.toObject({ virtuals: true }),
+        finalization: finalizationResult
+      });
+    } catch (finalizationError) {
+      console.error(`Error finalizing session ${sessionId}:`, finalizationError);
+      
+      // Fallback: End the session manually without finalization
+      session.endTime = endDateTime;
+      session.status = 'completed';
+      if (totalSamples !== undefined) {
+        session.totalSamples = totalSamples;
+      }
+      
+      await session.save();
+      
+      res.status(200).json({
+        success: true,
+        session: session.toObject({ virtuals: true }),
+        warning: 'Session ended but data finalization failed',
+        error: finalizationError.message
+      });
     }
-    
-    await session.save();
-    
-    res.status(200).json({
-      success: true,
-      session: session.toObject({ virtuals: true })
-    });
   } catch (error) {
     console.error('Error ending session:', error);
     res.status(500).json({

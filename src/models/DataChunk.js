@@ -59,7 +59,7 @@ const dataChunkSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Sample count is required'],
     min: [1, 'Sample count must be at least 1'],
-    max: [2000, 'Sample count cannot exceed 2000']
+    max: [50000, 'Sample count cannot exceed 50000'] // Increased for consolidated chunks
   },
   data: {
     timestamps: {
@@ -90,6 +90,10 @@ const dataChunkSchema = new mongoose.Schema({
   stats: {
     type: channelStatsCollectionSchema,
     required: [true, 'Channel statistics are required']
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   }
 }, {
   timestamps: true

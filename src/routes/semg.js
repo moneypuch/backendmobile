@@ -55,7 +55,7 @@ const dataProcessor = new DataProcessor();
  *           items:
  *             $ref: '#/components/schemas/SampleData'
  *           minItems: 1
- *           maxItems: 1000
+ *           maxItems: 5000
  *           description: Array of sample data
  *         deviceInfo:
  *           type: object
@@ -79,7 +79,7 @@ const dataProcessor = new DataProcessor();
  *             size:
  *               type: number
  *               minimum: 1
- *               maximum: 1000
+ *               maximum: 5000
  *               example: 1000
  *             startTime:
  *               type: number
@@ -141,8 +141,8 @@ router.post('/batch', protect, [
     .isLength({ min: 10, max: 100 })
     .withMessage('Session ID must be a string between 10-100 characters'),
   body('samples')
-    .isArray({ min: 1, max: 1000 })
-    .withMessage('Samples must be an array with 1-1000 items'),
+    .isArray({ min: 1, max: 5000 })
+    .withMessage('Samples must be an array with 1-5000 items'),
   body('samples.*.timestamp')
     .isNumeric()
     .custom(value => value > 0)
@@ -165,8 +165,8 @@ router.post('/batch', protect, [
     .isLength({ min: 1, max: 50 })
     .withMessage('Device address is required'),
   body('batchInfo.size')
-    .isInt({ min: 1, max: 1000 })
-    .withMessage('Batch size must be between 1-1000'),
+    .isInt({ min: 1, max: 5000 })
+    .withMessage('Batch size must be between 1-5000'),
   body('batchInfo.startTime')
     .isNumeric()
     .custom(value => value > 0)
@@ -176,19 +176,25 @@ router.post('/batch', protect, [
     .custom(value => value > 0)
     .withMessage('End time must be a positive number')
 ], validateRequest, asyncHandler(async (req, res) => {
+  console.log(`📥 Received batch request from user ${req.user._id}`);
+  console.log(`📊 Batch info: sessionId=${req.body.sessionId}, samples=${req.body.samples.length}, batchSize=${req.body.batchInfo.size}`);
   
   // Validate batch data integrity
   const validation = dataProcessor.validateBatchData(req.body);
   if (!validation.isValid) {
+    console.log(`❌ Batch validation failed:`, validation.errors);
     return res.status(400).json({
       success: false,
       message: 'Batch data validation failed',
       errors: validation.errors
     });
   }
+  console.log(`✅ Batch validation passed`);
 
   try {
+    console.log(`🚀 Processing batch for session ${req.body.sessionId}`);
     const result = await dataProcessor.processBatch(req.body, req.user._id);
+    console.log(`✅ Batch processed successfully:`, result);
     
     res.status(200).json(result);
   } catch (error) {

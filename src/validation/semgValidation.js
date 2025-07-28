@@ -10,8 +10,8 @@ export const validateBatchUpload = [
     .withMessage('Session ID can only contain alphanumeric characters, underscores, and hyphens'),
   
   body('samples')
-    .isArray({ min: 1, max: 1000 })
-    .withMessage('Samples must be an array with 1-1000 items'),
+    .isArray({ min: 1, max: 5000 })
+    .withMessage('Samples must be an array with 1-5000 items'),
   
   body('samples.*.timestamp')
     .isNumeric()
@@ -72,8 +72,8 @@ export const validateBatchUpload = [
     .withMessage('Device address must be a valid MAC address format'),
   
   body('batchInfo.size')
-    .isInt({ min: 1, max: 1000 })
-    .withMessage('Batch size must be between 1-1000')
+    .isInt({ min: 1, max: 5000 })
+    .withMessage('Batch size must be between 1-5000')
     .custom((value, { req }) => {
       if (req.body.samples && value !== req.body.samples.length) {
         throw new Error('Batch size must match actual samples array length');
