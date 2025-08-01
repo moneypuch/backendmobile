@@ -33,8 +33,8 @@ export class DataProcessor {
       const existingChunks = await DataChunk.countDocuments({ sessionId });
       const chunkIndex = existingChunks;
 
-      // Create data chunk
-      const dataChunk = new DataChunk({
+      // Create/update data chunk using upsert to handle duplicates
+      const chunkDocument = {
         sessionId,
         chunkIndex,
         startTime: new Date(batchInfo.startTime),
@@ -42,19 +42,27 @@ export class DataProcessor {
         sampleCount: batchInfo.size,
         data: chunkData,
         stats
-      });
+      };
 
-      await dataChunk.save();
+      const result = await DataChunk.replaceOne(
+        { sessionId, chunkIndex },
+        chunkDocument,
+        { upsert: true }
+      );
 
       // Update session metadata
       await this.updateSessionMetadata(session, batchInfo.size, deviceInfo);
 
+      // Get the document ID for response
+      const chunkId = result.upsertedId || await DataChunk.findOne({ sessionId, chunkIndex }, '_id').then(doc => doc?._id);
+
       return {
         success: true,
-        chunkId: dataChunk._id,
+        chunkId,
         chunkIndex,
         samplesProcessed: batchInfo.size,
-        sessionStatus: session.status
+        sessionStatus: session.status,
+        isUpdate: !result.upsertedId // Indicates if this was an update vs insert
       };
 
     } catch (error) {
