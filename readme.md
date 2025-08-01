@@ -39,6 +39,7 @@ npm run dev
 ## 📚 API Documentation
 
 - **Swagger UI**: http://localhost:3000/api-docs
+- **Swagger JSON Export**: http://localhost:3000/swagger-export
 - **Health Check**: http://localhost:3000/health
 
 ## 🧪 Test the API
@@ -105,6 +106,83 @@ The API uses JWT tokens. After login/register, include the token in requests:
 curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   http://localhost:3000/api/users/profile
 ```
+
+## 👑 Admin Users
+
+### Creating Admin Users
+
+By default, all users are created with the `user` role. To create admin users:
+
+#### Method 1: Using the Admin Script
+```bash
+# First, register a normal user
+curl -X POST http://localhost:3000/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Admin User",
+    "email": "admin@example.com", 
+    "password": "admin123"
+  }'
+
+# Then promote them to admin using the script
+node scripts/make-admin.js admin@example.com
+```
+
+#### Method 2: Direct Database Update
+```bash
+# Connect to MongoDB and update user role
+mongo mongodb://admin:password123@localhost:27017/express5_app?authSource=admin
+db.users.updateOne({email: "admin@example.com"}, {$set: {role: "admin"}})
+```
+
+### Admin API Endpoints
+
+Admin users have access to additional endpoints under `/api/admin/`:
+
+#### User Management
+```bash
+# Get all users with session statistics
+curl -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+  "http://localhost:3000/api/admin/users?limit=50&page=1&sortBy=sessionCount&sortOrder=desc"
+
+# Get sessions for a specific user  
+curl -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+  "http://localhost:3000/api/admin/users/USER_ID/sessions?limit=20&status=active"
+```
+
+#### Session Management
+```bash
+# Delete any session (admin only)
+curl -X DELETE \
+  -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+  "http://localhost:3000/api/admin/sessions/SESSION_ID"
+```
+
+#### System Analytics
+```bash
+# Get comprehensive system statistics
+curl -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+  "http://localhost:3000/api/admin/stats"
+```
+
+### Admin Features
+
+- **User Overview**: View all users with session counts, total samples, and activity metrics
+- **Session Management**: Access and delete any user's sessions with associated data chunks
+- **System Analytics**: Monitor total users, sessions, data chunks, storage usage, and performance metrics
+- **Pagination & Filtering**: All admin endpoints support pagination, sorting, and filtering
+- **Real-time Stats**: Get current active sessions and recent activity
+
+### Admin Dashboard Data
+
+The admin endpoints provide comprehensive data for building admin dashboards:
+
+- Total users and users with active sessions
+- Session distribution (active/completed/error)
+- Data storage usage and chunk statistics
+- Average samples per session and per user
+- Recent session activity and trends
+- Individual user session history and data usage
 
 ## 🚨 Troubleshooting
 

@@ -71,7 +71,7 @@ const router = express.Router();
  * @swagger
  * /api/sessions:
  *   get:
- *     summary: Get user's recording sessions
+ *     summary: Get recording sessions (users see their own, admins see all)
  *     tags: [Sessions]
  *     security:
  *       - bearerAuth: []
@@ -152,8 +152,11 @@ router.get('/', protect, [
 ], validateRequest, asyncHandler(async (req, res) => {
   const { limit = 50, offset = 0, status, deviceId } = req.query;
   
-  // Build query filter
-  const filter = { userId: req.user._id };
+  // Build query filter - admins can see all sessions, users only their own
+  const filter = {};
+  if (req.user.role !== 'admin') {
+    filter.userId = req.user._id;
+  }
   if (status) filter.status = status;
   if (deviceId) filter.deviceId = deviceId;
   
@@ -202,7 +205,7 @@ router.get('/', protect, [
  * @swagger
  * /api/sessions/{sessionId}:
  *   get:
- *     summary: Get detailed information about a specific session
+ *     summary: Get detailed information about a specific session (users can only access their own, admins can access any)
  *     tags: [Sessions]
  *     security:
  *       - bearerAuth: []
@@ -247,11 +250,14 @@ router.get('/:sessionId', protect, asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
   
   try {
+    // Build query - admins can access any session, users only their own
+    const query = { sessionId };
+    if (req.user.role !== 'admin') {
+      query.userId = req.user._id;
+    }
+    
     // Get session details
-    const session = await Session.findOne({ 
-      sessionId, 
-      userId: req.user._id 
-    }).lean();
+    const session = await Session.findOne(query).lean();
     
     if (!session) {
       return res.status(404).json({
@@ -543,10 +549,13 @@ router.put('/:sessionId/end', protect, [
   const { endTime, totalSamples } = req.body;
   
   try {
-    const session = await Session.findOne({ 
-      sessionId, 
-      userId: req.user._id 
-    });
+    // Build query - admins can end any session, users only their own
+    const query = { sessionId };
+    if (req.user.role !== 'admin') {
+      query.userId = req.user._id;
+    }
+    
+    const session = await Session.findOne(query);
     
     if (!session) {
       return res.status(404).json({
@@ -634,10 +643,13 @@ router.delete('/:sessionId', protect, asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
   
   try {
-    const session = await Session.findOne({ 
-      sessionId, 
-      userId: req.user._id 
-    });
+    // Build query - admins can delete any session, users only their own
+    const query = { sessionId };
+    if (req.user.role !== 'admin') {
+      query.userId = req.user._id;
+    }
+    
+    const session = await Session.findOne(query);
     
     if (!session) {
       return res.status(404).json({
@@ -649,8 +661,8 @@ router.delete('/:sessionId', protect, asyncHandler(async (req, res) => {
     // Delete all associated data chunks
     const deleteResult = await DataChunk.deleteMany({ sessionId });
     
-    // Delete the session
-    await Session.deleteOne({ sessionId, userId: req.user._id });
+    // Delete the session (no user restriction for admins)
+    await Session.deleteOne({ sessionId });
     
     res.status(200).json({
       success: true,

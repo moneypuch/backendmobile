@@ -127,4 +127,164 @@ userSchema.virtual('profile').get(function() {
   };
 });
 
+// Static method to get users with session counts
+userSchema.statics.getUsersWithSessionCount = function(options = {}) {
+  const { limit = 50, skip = 0, sortBy = 'createdAt', sortOrder = -1 } = options;
+  
+  return this.aggregate([
+    {
+      $lookup: {
+        from: 'sessions',
+        localField: '_id',
+        foreignField: 'userId',
+        as: 'sessions'
+      }
+    },
+    {
+      $addFields: {
+        sessionCount: { $size: '$sessions' },
+        activeSessions: {
+          $size: {
+            $filter: {
+              input: '$sessions',
+              cond: { $eq: ['$$this.status', 'active'] }
+            }
+          }
+        },
+        completedSessions: {
+          $size: {
+            $filter: {
+              input: '$sessions',
+              cond: { $eq: ['$$this.status', 'completed'] }
+            }
+          }
+        },
+        lastSessionDate: {
+          $max: '$sessions.startTime'
+        },
+        totalSamples: {
+          $sum: '$sessions.totalSamples'
+        }
+      }
+    },
+    {
+      $project: {
+        name: 1,
+        email: 1,
+        role: 1,
+        isVerified: 1,
+        avatar: 1,
+        lastLogin: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        sessionCount: 1,
+        activeSessions: 1,
+        completedSessions: 1,
+        lastSessionDate: 1,
+        totalSamples: 1
+        // sessions field is automatically excluded since we don't include it
+      }
+    },
+    { $sort: { [sortBy]: sortOrder } },
+    { $skip: skip },
+    { $limit: limit }
+  ]);
+};
+
+// Static method to get system statistics
+userSchema.statics.getSystemStats = function() {
+  return this.aggregate([
+    {
+      $lookup: {
+        from: 'sessions',
+        localField: '_id',
+        foreignField: 'userId',
+        as: 'sessions'
+      }
+    },
+    {
+      $lookup: {
+        from: 'datachunks',
+        let: { userSessions: '$sessions.sessionId' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $in: ['$sessionId', '$$userSessions'] }
+            }
+          }
+        ],
+        as: 'dataChunks'
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalUsers: { $sum: 1 },
+        totalSessions: { $sum: { $size: '$sessions' } },
+        activeSessions: {
+          $sum: {
+            $size: {
+              $filter: {
+                input: '$sessions',
+                cond: { $eq: ['$$this.status', 'active'] }
+              }
+            }
+          }
+        },
+        completedSessions: {
+          $sum: {
+            $size: {
+              $filter: {
+                input: '$sessions',
+                cond: { $eq: ['$$this.status', 'completed'] }
+              }
+            }
+          }
+        },
+        totalDataChunks: { $sum: { $size: '$dataChunks' } },
+        totalSamples: {
+          $sum: {
+            $reduce: {
+              input: '$sessions',
+              initialValue: 0,
+              in: { $add: ['$$value', '$$this.totalSamples'] }
+            }
+          }
+        },
+        usersWithSessions: {
+          $sum: {
+            $cond: [{ $gt: [{ $size: '$sessions' }, 0] }, 1, 0]
+          }
+        }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        totalUsers: 1,
+        totalSessions: 1,
+        activeSessions: 1,
+        completedSessions: 1,
+        totalDataChunks: 1,
+        totalSamples: 1,
+        usersWithSessions: 1,
+        avgSessionsPerUser: {
+          $cond: [
+            { $gt: ['$totalUsers', 0] },
+            { $divide: ['$totalSessions', '$totalUsers'] },
+            0
+          ]
+        },
+        avgSamplesPerSession: {
+          $cond: [
+            { $gt: ['$totalSessions', 0] },
+            { $divide: ['$totalSamples', '$totalSessions'] },
+            0
+          ]
+        }
+      }
+    }
+  ]);
+};
+
 export default mongoose.model('User', userSchema);

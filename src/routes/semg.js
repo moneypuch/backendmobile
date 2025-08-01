@@ -219,7 +219,7 @@ router.post('/batch', protect, [
  * @swagger
  * /api/semg/sessions/{sessionId}/stats:
  *   get:
- *     summary: Get processing statistics for a session
+ *     summary: Get processing statistics for a session (users can only access their own, admins can access any)
  *     tags: [sEMG Data]
  *     security:
  *       - bearerAuth: []
@@ -276,8 +276,14 @@ router.post('/batch', protect, [
 router.get('/sessions/:sessionId/stats', protect, asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
   
-  // Verify session belongs to user
-  const session = await Session.findOne({ sessionId, userId: req.user._id });
+  // Build query - admins can access any session stats, users only their own
+  const query = { sessionId };
+  if (req.user.role !== 'admin') {
+    query.userId = req.user._id;
+  }
+  
+  // Verify session exists and user has access
+  const session = await Session.findOne(query);
   if (!session) {
     return res.status(404).json({
       success: false,
@@ -305,7 +311,7 @@ router.get('/sessions/:sessionId/stats', protect, asyncHandler(async (req, res) 
  * @swagger
  * /api/semg/sessions/{sessionId}/data:
  *   get:
- *     summary: Get sEMG data for a session with optional time range filtering
+ *     summary: Get sEMG data for a session with optional time range filtering (users can only access their own, admins can access any)
  *     tags: [sEMG Data]
  *     security:
  *       - bearerAuth: []
@@ -371,8 +377,14 @@ router.get('/sessions/:sessionId/data', protect, asyncHandler(async (req, res) =
   const { sessionId } = req.params;
   const { startTime, endTime, channels, maxPoints = 10000 } = req.query;
   
-  // Verify session belongs to user
-  const session = await Session.findOne({ sessionId, userId: req.user._id });
+  // Build query - admins can access any session data, users only their own
+  const query = { sessionId };
+  if (req.user.role !== 'admin') {
+    query.userId = req.user._id;
+  }
+  
+  // Verify session exists and user has access
+  const session = await Session.findOne(query);
   if (!session) {
     return res.status(404).json({
       success: false,
