@@ -20,6 +20,10 @@ import { setupSocketIO } from './socket/socketHandler.js';
 import './config/env.js';
 
 const app = express();
+
+// Trust proxy for ngrok and other reverse proxies
+app.set('trust proxy', 1);
+
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
@@ -45,7 +49,17 @@ app.use(compression());
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  message: 'Too many requests from this IP, please try again later.',
+  // Configure for proxy environments like ngrok
+  trustProxy: true,
+  // Use a more robust key generator for proxied environments
+  keyGenerator: (req) => {
+    // In development with ngrok, fall back to a combination of IP and user agent
+    if (process.env.NODE_ENV === 'development') {
+      return req.ip + ':' + (req.get('User-Agent') || 'unknown');
+    }
+    return req.ip;
+  }
 });
 app.use(limiter);
 
