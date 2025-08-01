@@ -27,6 +27,10 @@ const router = express.Router();
  *         deviceName:
  *           type: string
  *           example: "HC-05 Device"
+ *         deviceType:
+ *           type: string
+ *           enum: [HC-05, IMU, null]
+ *           example: "HC-05"
  *         startTime:
  *           type: string
  *           format: date-time
@@ -343,6 +347,11 @@ router.get('/:sessionId', protect, asyncHandler(async (req, res) => {
  *                 type: string
  *                 description: Human-readable device name
  *                 example: "HC-05 Device"
+ *               deviceType:
+ *                 type: string
+ *                 description: Type of device (HC-05 or IMU)
+ *                 enum: [HC-05, IMU]
+ *                 example: "HC-05"
  *               startTime:
  *                 type: string
  *                 format: date-time
@@ -400,6 +409,10 @@ router.post('/', protect, [
     .isString()
     .isLength({ min: 1, max: 100 })
     .withMessage('Device name is required and must be under 100 characters'),
+  body('deviceType')
+    .optional()
+    .isIn(['HC-05', 'IMU', null])
+    .withMessage('Device type must be HC-05, IMU, or null'),
   body('startTime')
     .isISO8601()
     .withMessage('Start time must be a valid ISO 8601 date'),
@@ -416,7 +429,7 @@ router.post('/', protect, [
     .isObject()
     .withMessage('Metadata must be an object')
 ], validateRequest, asyncHandler(async (req, res) => {
-  const { sessionId, deviceId, deviceName, startTime, sampleRate, channelCount, metadata } = req.body;
+  const { sessionId, deviceId, deviceName, deviceType, startTime, sampleRate, channelCount, metadata } = req.body;
   
   try {
     // Check if session already exists
@@ -434,6 +447,7 @@ router.post('/', protect, [
       userId: req.user._id,
       deviceId,
       deviceName,
+      deviceType,
       startTime: new Date(startTime),
       sampleRate: sampleRate || 1000,
       channelCount: channelCount || 10,

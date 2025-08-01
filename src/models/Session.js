@@ -21,6 +21,11 @@ const sessionSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Device name is required']
   },
+  deviceType: {
+    type: String,
+    enum: ['HC-05', 'IMU', null],
+    default: null
+  },
   startTime: {
     type: Date,
     required: [true, 'Start time is required'],

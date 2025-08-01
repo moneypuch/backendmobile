@@ -1,9 +1,11 @@
 import express from 'express';
 import { body } from 'express-validator';
 import asyncHandler from 'express-async-handler';
+import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import { validateRequest } from '../middleware/validation.js';
+import { config } from '../config/env.js';
 
 const router = express.Router();
 

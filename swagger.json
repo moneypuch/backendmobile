@@ -1,0 +1,1543 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Express 5 Modern API",
+    "version": "1.0.0",
+    "description": "A modern REST API built with Express 5, MongoDB, JWT authentication, and WebSocket support",
+    "contact": {
+      "name": "API Support",
+      "email": "support@example.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://your-api.com",
+      "description": "Production server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter JWT token in the format: Bearer <token>"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "User full name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User email address"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "admin"
+            ],
+            "default": "user",
+            "description": "User role"
+          },
+          "isVerified": {
+            "type": "boolean",
+            "default": false,
+            "description": "Email verification status"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "User creation timestamp"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "User last update timestamp"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "token": {
+            "type": "string",
+            "description": "JWT token"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Detailed error messages"
+          }
+        }
+      },
+      "SampleData": {
+        "type": "object",
+        "required": [
+          "timestamp",
+          "values",
+          "sessionId"
+        ],
+        "properties": {
+          "timestamp": {
+            "type": "number",
+            "description": "Unix timestamp in milliseconds",
+            "example": 1640995200000
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 10,
+            "maxItems": 10,
+            "description": "Array of 10 channel values",
+            "example": [
+              123.45,
+              234.56,
+              345.67,
+              456.78,
+              567.89,
+              678.9,
+              789.01,
+              890.12,
+              901.23,
+              12.34
+            ]
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Session identifier",
+            "example": "session_1640995200000_user123"
+          }
+        }
+      },
+      "BatchRequest": {
+        "type": "object",
+        "required": [
+          "sessionId",
+          "samples",
+          "deviceInfo",
+          "batchInfo"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "Session identifier",
+            "example": "session_1640995200000_user123"
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SampleData"
+            },
+            "minItems": 1,
+            "maxItems": 1000,
+            "description": "Array of sample data"
+          },
+          "deviceInfo": {
+            "type": "object",
+            "required": [
+              "name",
+              "address"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "example": "HC-05 Device"
+              },
+              "address": {
+                "type": "string",
+                "example": "98:D3:31:FB:4E:7C"
+              }
+            }
+          },
+          "batchInfo": {
+            "type": "object",
+            "required": [
+              "size",
+              "startTime",
+              "endTime"
+            ],
+            "properties": {
+              "size": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 1000,
+                "example": 1000
+              },
+              "startTime": {
+                "type": "number",
+                "example": 1640995200000
+              },
+              "endTime": {
+                "type": "number",
+                "example": 1640995201000
+              }
+            }
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "example": "session_1640995200000_user123"
+          },
+          "userId": {
+            "type": "string",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "deviceId": {
+            "type": "string",
+            "example": "HC-05_ABC123"
+          },
+          "deviceName": {
+            "type": "string",
+            "example": "HC-05 Device"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-01-01T10:00:00Z"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-01-01T10:15:00Z"
+          },
+          "sampleRate": {
+            "type": "number",
+            "example": 1000
+          },
+          "channelCount": {
+            "type": "number",
+            "example": 10
+          },
+          "totalSamples": {
+            "type": "number",
+            "example": 900000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "error"
+            ],
+            "example": "completed"
+          },
+          "duration": {
+            "type": "number",
+            "description": "Duration in seconds",
+            "example": 900
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "appVersion": {
+                "type": "string"
+              },
+              "deviceInfo": {
+                "type": "object"
+              },
+              "notes": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "password123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Login user",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "password123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Get current user profile",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Logout user",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout successful"
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "summary": "Refresh access token",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed successfully"
+          }
+        }
+      }
+    },
+    "/api/semg/batch": {
+      "post": {
+        "summary": "Upload batch of sEMG data samples",
+        "tags": [
+          "sEMG Data"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "chunkId": {
+                      "type": "string",
+                      "example": "507f1f77bcf86cd799439011"
+                    },
+                    "chunkIndex": {
+                      "type": "number",
+                      "example": 42
+                    },
+                    "samplesProcessed": {
+                      "type": "number",
+                      "example": 1000
+                    },
+                    "sessionStatus": {
+                      "type": "string",
+                      "example": "active"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Session not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/semg/sessions/{sessionId}/stats": {
+      "get": {
+        "summary": "Get processing statistics for a session",
+        "tags": [
+          "sEMG Data"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Session ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "stats": {
+                      "type": "object",
+                      "properties": {
+                        "session": {
+                          "type": "object",
+                          "properties": {
+                            "sessionId": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "duration": {
+                              "type": "number"
+                            },
+                            "totalSamples": {
+                              "type": "number"
+                            },
+                            "sampleRate": {
+                              "type": "number"
+                            },
+                            "channelCount": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "processing": {
+                          "type": "object",
+                          "properties": {
+                            "chunksProcessed": {
+                              "type": "number"
+                            },
+                            "samplesProcessed": {
+                              "type": "number"
+                            },
+                            "avgSampleRate": {
+                              "type": "number"
+                            },
+                            "dataIntegrity": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        }
+      }
+    },
+    "/api/semg/sessions/{sessionId}/data": {
+      "get": {
+        "summary": "Get sEMG data for a session with optional time range filtering",
+        "tags": [
+          "sEMG Data"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Session ID"
+          },
+          {
+            "in": "query",
+            "name": "startTime",
+            "schema": {
+              "type": "number"
+            },
+            "description": "Start time filter (Unix timestamp)"
+          },
+          {
+            "in": "query",
+            "name": "endTime",
+            "schema": {
+              "type": "number"
+            },
+            "description": "End time filter (Unix timestamp)"
+          },
+          {
+            "in": "query",
+            "name": "channels",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated channel numbers (0-9)",
+            "example": "0,1,2"
+          },
+          {
+            "in": "query",
+            "name": "maxPoints",
+            "schema": {
+              "type": "number",
+              "default": 10000
+            },
+            "description": "Maximum number of data points to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sessionId": {
+                          "type": "string"
+                        },
+                        "timeRange": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "chunks": {
+                          "type": "number"
+                        },
+                        "channels": {
+                          "type": "object"
+                        },
+                        "stats": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        }
+      }
+    },
+    "/api/sessions": {
+      "get": {
+        "summary": "Get user's recording sessions",
+        "tags": [
+          "Sessions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "number",
+              "default": 50,
+              "maximum": 100
+            },
+            "description": "Maximum number of sessions to return"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "number",
+              "default": 0
+            },
+            "description": "Number of sessions to skip"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "completed",
+                "error"
+              ]
+            },
+            "description": "Filter by session status"
+          },
+          {
+            "in": "query",
+            "name": "deviceId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by device ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "sessions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Session"
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "number"
+                        },
+                        "limit": {
+                          "type": "number"
+                        },
+                        "offset": {
+                          "type": "number"
+                        },
+                        "hasMore": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new recording session",
+        "tags": [
+          "Sessions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sessionId",
+                  "deviceId",
+                  "deviceName",
+                  "startTime"
+                ],
+                "properties": {
+                  "sessionId": {
+                    "type": "string",
+                    "description": "Unique session identifier",
+                    "example": "session_1640995200000_user123"
+                  },
+                  "deviceId": {
+                    "type": "string",
+                    "description": "Device identifier",
+                    "example": "HC-05_ABC123"
+                  },
+                  "deviceName": {
+                    "type": "string",
+                    "description": "Human-readable device name",
+                    "example": "HC-05 Device"
+                  },
+                  "startTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Session start time",
+                    "example": "2024-01-01T10:00:00Z"
+                  },
+                  "sampleRate": {
+                    "type": "number",
+                    "description": "Expected sample rate (samples per second)",
+                    "default": 1000,
+                    "example": 1000
+                  },
+                  "channelCount": {
+                    "type": "number",
+                    "description": "Number of EMG channels",
+                    "default": 10,
+                    "example": 10
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "properties": {
+                      "appVersion": {
+                        "type": "string",
+                        "example": "1.0.0"
+                      },
+                      "notes": {
+                        "type": "string",
+                        "example": "Test recording session"
+                      },
+                      "deviceInfo": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Session created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "session": {
+                      "$ref": "#/components/schemas/Session"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or session already exists"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/sessions/{sessionId}": {
+      "get": {
+        "summary": "Get detailed information about a specific session",
+        "tags": [
+          "Sessions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Session ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "session": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/Session"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "chunks": {
+                              "type": "number",
+                              "description": "Number of data chunks"
+                            },
+                            "actualSamples": {
+                              "type": "number",
+                              "description": "Actual samples in data chunks"
+                            },
+                            "dataIntegrity": {
+                              "type": "number",
+                              "description": "Data integrity percentage"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a session and all its data",
+        "tags": [
+          "Sessions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Session ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Session and all associated data deleted successfully"
+                    },
+                    "deletedChunks": {
+                      "type": "number",
+                      "description": "Number of data chunks deleted"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        }
+      }
+    },
+    "/api/sessions/{sessionId}/end": {
+      "put": {
+        "summary": "End an active recording session",
+        "tags": [
+          "Sessions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Session ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "endTime"
+                ],
+                "properties": {
+                  "endTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Session end time",
+                    "example": "2024-01-01T10:15:00Z"
+                  },
+                  "totalSamples": {
+                    "type": "number",
+                    "description": "Final total sample count",
+                    "example": 900000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session ended successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "session": {
+                      "$ref": "#/components/schemas/Session"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or session not active"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Session not found"
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "summary": "Get all users (Admin only)",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Number of users per page"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search by name or email"
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "admin"
+              ]
+            },
+            "description": "Filter by role"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "pages": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update user",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "User ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 50
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "admin"
+                    ],
+                    "description": "Only admins can change roles"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete user (Admin only)",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted successfully"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/api/users/profile/update": {
+      "put": {
+        "summary": "Update current user's profile",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 50
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "avatar": {
+                    "type": "string",
+                    "description": "Avatar URL or base64 image"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully"
+          }
+        }
+      }
+    },
+    "/api/users/password/change": {
+      "put": {
+        "summary": "Change user password",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "currentPassword",
+                  "newPassword"
+                ],
+                "properties": {
+                  "currentPassword": {
+                    "type": "string"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 6
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully"
+          },
+          "400": {
+            "description": "Invalid current password"
+          }
+        }
+      }
+    },
+    "/api/users/stats": {
+      "get": {
+        "summary": "Get user statistics (Admin only)",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User statistics retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "totalUsers": {
+                          "type": "integer"
+                        },
+                        "verifiedUsers": {
+                          "type": "integer"
+                        },
+                        "adminUsers": {
+                          "type": "integer"
+                        },
+                        "recentUsers": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}
