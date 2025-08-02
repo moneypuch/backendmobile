@@ -71,7 +71,7 @@ const router = express.Router();
  * @swagger
  * /api/sessions:
  *   get:
- *     summary: Get recording sessions (users see their own, admins see all)
+ *     summary: Get recording sessions (users and admins see only their own sessions)
  *     tags: [Sessions]
  *     security:
  *       - bearerAuth: []
@@ -152,11 +152,9 @@ router.get('/', protect, [
 ], validateRequest, asyncHandler(async (req, res) => {
   const { limit = 50, offset = 0, status, deviceId } = req.query;
   
-  // Build query filter - admins can see all sessions, users only their own
+  // Build query filter - by default everyone sees only their own sessions
   const filter = {};
-  if (req.user.role !== 'admin') {
-    filter.userId = req.user._id;
-  }
+  filter.userId = req.user._id;
   if (status) filter.status = status;
   if (deviceId) filter.deviceId = deviceId;
   
@@ -317,6 +315,122 @@ router.get('/:sessionId', protect, asyncHandler(async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error retrieving session details'
+    });
+  }
+}));
+
+/**
+ * @swagger
+ * /api/sessions/{sessionId}/download:
+ *   get:
+ *     summary: Download session data as CSV (users can only download their own, admins can download any)
+ *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *     responses:
+ *       200:
+ *         description: CSV file download
+ *         content:
+ *           text/csv:
+ *             schema:
+ *               type: string
+ *       404:
+ *         description: Session not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/:sessionId/download', protect, asyncHandler(async (req, res) => {
+  const { sessionId } = req.params;
+  
+  try {
+    // Build query - admins can download any session, users only their own
+    const query = { sessionId };
+    if (req.user.role !== 'admin') {
+      query.userId = req.user._id;
+    }
+    
+    // Get session details with user info
+    const session = await Session.findOne(query).populate('userId', 'name email').lean();
+    
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+    
+    // Get all data chunks for the session
+    const chunks = await DataChunk.find({ sessionId })
+      .sort({ chunkIndex: 1 })
+      .lean();
+    
+    if (chunks.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No data found for this session'
+      });
+    }
+    
+    // Prepare CSV filename with username, device type, and creation datetime
+    const username = session.userId?.name || 'Unknown';
+    const sanitizedUsername = username.replace(/[^a-zA-Z0-9]/g, '_');
+    const deviceType = session.deviceType || 'Unknown';
+    const creationDate = new Date(session.startTime).toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `session_${sanitizedUsername}_${deviceType}_${creationDate}.csv`;
+    
+    // Set response headers for CSV download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    // Write CSV header based on device type
+    let headers;
+    if (session.deviceType === 'IMU') {
+      // IMU headers: timestamp, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z (9 channels)
+      headers = ['timestamp', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y', 'gyro_z', 'mag_x', 'mag_y', 'mag_z'];
+    } else {
+      // HC-05 or default headers for EMG data
+      headers = ['timestamp', 'ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9'];
+    }
+    res.write(headers.join(',') + '\n');
+    
+    // Process each chunk and write data
+    for (const chunk of chunks) {
+      const { timestamps } = chunk.data;
+      const { channels } = chunk.data;
+      
+      // Write each sample as a row
+      for (let i = 0; i < chunk.sampleCount; i++) {
+        let row = [timestamps[i]];
+        
+        if (session.deviceType === 'IMU') {
+          // For IMU data: ch0-2: accel XYZ, ch3-5: gyro XYZ, ch6-8: mag XYZ (9 channels total)
+          for (let ch = 0; ch <= 8; ch++) {
+            row.push(channels[`ch${ch}`][i]);
+          }
+        } else {
+          // For HC-05 data: ch0-9: EMG channels (10 channels total)
+          for (let ch = 0; ch <= 9; ch++) {
+            row.push(channels[`ch${ch}`][i]);
+          }
+        }
+        
+        res.write(row.join(',') + '\n');
+      }
+    }
+    
+    res.end();
+  } catch (error) {
+    console.error('Error downloading session data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error downloading session data'
     });
   }
 }));
