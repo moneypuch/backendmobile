@@ -45,23 +45,19 @@ app.use(cors({
 }));
 app.use(compression());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  // Configure for proxy environments like ngrok
-  trustProxy: true,
-  // Use a more robust key generator for proxied environments
-  keyGenerator: (req) => {
-    // In development with ngrok, fall back to a combination of IP and user agent
-    if (process.env.NODE_ENV === 'development') {
-      return req.ip + ':' + (req.get('User-Agent') || 'unknown');
-    }
-    return req.ip;
-  }
-});
-app.use(limiter);
+// Rate limiting - only in production
+if (process.env.NODE_ENV === 'production') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10000, // increased limit for high-frequency sEMG data (1000Hz sampling)
+    message: 'Too many requests from this IP, please try again later.',
+    trustProxy: true,
+    keyGenerator: (req) => req.ip
+  });
+  app.use(limiter);
+} else {
+  console.log('⚠️  Rate limiting disabled in non-production environment');
+}
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
