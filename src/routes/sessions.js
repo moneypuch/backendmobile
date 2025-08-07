@@ -29,8 +29,8 @@ const router = express.Router();
  *           example: "HC-05 Device"
  *         deviceType:
  *           type: string
- *           enum: [HC-05, IMU, null]
- *           example: "HC-05"
+ *           enum: [sEMG, IMU, null]
+ *           example: "sEMG"
  *         startTime:
  *           type: string
  *           format: date-time
@@ -395,7 +395,7 @@ router.get('/:sessionId/download', protect, asyncHandler(async (req, res) => {
       // IMU headers: timestamp, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z (9 channels)
       headers = ['timestamp', 'accel_x', 'accel_y', 'accel_z', 'gyro_x', 'gyro_y', 'gyro_z', 'mag_x', 'mag_y', 'mag_z'];
     } else {
-      // HC-05 or default headers for EMG data
+      // sEMG or default headers for EMG data
       headers = ['timestamp', 'ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6', 'ch7', 'ch8', 'ch9'];
     }
     res.write(headers.join(',') + '\n');
@@ -415,7 +415,7 @@ router.get('/:sessionId/download', protect, asyncHandler(async (req, res) => {
             row.push(channels[`ch${ch}`][i]);
           }
         } else {
-          // For HC-05 data: ch0-9: EMG channels (10 channels total)
+          // For sEMG data: ch0-9: EMG channels (10 channels total)
           for (let ch = 0; ch <= 9; ch++) {
             row.push(channels[`ch${ch}`][i]);
           }
@@ -469,9 +469,9 @@ router.get('/:sessionId/download', protect, asyncHandler(async (req, res) => {
  *                 example: "HC-05 Device"
  *               deviceType:
  *                 type: string
- *                 description: Type of device (HC-05 or IMU)
- *                 enum: [HC-05, IMU]
- *                 example: "HC-05"
+ *                 description: Type of device (sEMG or IMU)
+ *                 enum: [sEMG, IMU]
+ *                 example: "sEMG"
  *               startTime:
  *                 type: string
  *                 format: date-time
@@ -531,8 +531,8 @@ router.post('/', protect, [
     .withMessage('Device name is required and must be under 100 characters'),
   body('deviceType')
     .optional()
-    .isIn(['HC-05', 'IMU', null])
-    .withMessage('Device type must be HC-05, IMU, or null'),
+    .isIn(['sEMG', 'IMU', null])
+    .withMessage('Device type must be sEMG, IMU, or null'),
   body('startTime')
     .isISO8601()
     .withMessage('Start time must be a valid ISO 8601 date'),

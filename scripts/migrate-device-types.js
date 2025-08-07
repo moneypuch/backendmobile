@@ -33,7 +33,7 @@ async function migrateDeviceTypes() {
         session.deviceName.toLowerCase().includes('hc05') ||
         session.deviceName.toLowerCase().includes('bluetooth')
       )) {
-        deviceType = 'HC-05';
+        deviceType = 'sEMG';
         hc05Count++;
       }
       // Check for IMU patterns
@@ -55,7 +55,7 @@ async function migrateDeviceTypes() {
     }
 
     console.log('\nMigration Summary:');
-    console.log(`- HC-05 devices: ${hc05Count}`);
+    console.log(`- sEMG devices: ${hc05Count}`);
     console.log(`- IMU devices: ${imuCount}`);
     console.log(`- Unknown devices (set to null): ${unknownCount}`);
     console.log(`- Total sessions updated: ${sessionsToUpdate.length}`);

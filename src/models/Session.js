@@ -23,7 +23,7 @@ const sessionSchema = new mongoose.Schema({
   },
   deviceType: {
     type: String,
-    enum: ['HC-05', 'IMU', null],
+    enum: ['sEMG', 'IMU', null],
     default: null
   },
   startTime: {
