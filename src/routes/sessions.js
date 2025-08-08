@@ -32,6 +32,11 @@ const router = express.Router();
  *           type: string
  *           enum: [sEMG, IMU, null]
  *           example: "sEMG"
+ *         sessionType:
+ *           type: string
+ *           enum: [raw, normalized]
+ *           default: raw
+ *           example: "raw"
  *         startTime:
  *           type: string
  *           format: date-time
@@ -533,8 +538,9 @@ router.post('/:sessionId/normalize', protect, asyncHandler(async (req, res) => {
       sessionId: newSessionId,
       userId: originalSession.userId,
       deviceId: originalSession.deviceId,
-      deviceName: `${originalSession.deviceName} (Normalized: ${method})`,
+      deviceName: `${originalSession.deviceName} (N)`,
       deviceType: originalSession.deviceType,
+      sessionType: 'normalized', // Normalized session
       startTime: originalSession.startTime,
       endTime: originalSession.endTime,
       sampleRate: originalSession.sampleRate,
@@ -756,6 +762,7 @@ router.post('/', protect, [
       deviceId,
       deviceName,
       deviceType,
+      sessionType: 'raw', // Raw session from sensors
       startTime: new Date(startTime),
       sampleRate: sampleRate || 1000,
       channelCount: channelCount || 10,

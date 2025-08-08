@@ -26,6 +26,12 @@ const sessionSchema = new mongoose.Schema({
     enum: ['sEMG', 'IMU', null],
     default: null
   },
+  sessionType: {
+    type: String,
+    enum: ['raw', 'normalized'],
+    default: 'raw',
+    index: true
+  },
   startTime: {
     type: Date,
     required: [true, 'Start time is required'],
