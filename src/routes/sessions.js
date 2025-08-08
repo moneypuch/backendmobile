@@ -5,6 +5,7 @@ import Session from '../models/Session.js';
 import DataChunk from '../models/DataChunk.js';
 import { protect } from '../middleware/auth.js';
 import { validateRequest } from '../middleware/validation.js';
+import normalizationService from '../services/normalizationService.js';
 
 const router = express.Router();
 
@@ -431,6 +432,193 @@ router.get('/:sessionId/download', protect, asyncHandler(async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error downloading session data'
+    });
+  }
+}));
+
+/**
+ * @swagger
+ * /api/sessions/{sessionId}/normalize:
+ *   post:
+ *     summary: Normalize session data
+ *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: sessionId
+ *         in: path
+ *         required: true
+ *         description: Session ID to normalize
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               method:
+ *                 type: string
+ *                 enum: [min_max, z_score, rms, max_abs, percentile]
+ *                 description: Normalization method to apply
+ *               options:
+ *                 type: object
+ *                 description: Method-specific options
+ *     responses:
+ *       201:
+ *         description: Session normalized successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 newSessionId:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Session not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/:sessionId/normalize', protect, asyncHandler(async (req, res) => {
+  const { sessionId } = req.params;
+  const { method = 'min_max', options = {} } = req.body;
+  
+  try {
+    // Validate normalization method
+    if (!normalizationService.isValidMethod(method)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid normalization method: ${method}`
+      });
+    }
+    
+    // Build query - users can only normalize their own sessions
+    const query = { sessionId };
+    if (req.user.role !== 'admin') {
+      query.userId = req.user._id;
+    }
+    
+    // Get original session
+    const originalSession = await Session.findOne(query).lean();
+    
+    if (!originalSession) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+    
+    // Get all data chunks for the session
+    const chunks = await DataChunk.find({ sessionId })
+      .sort({ chunkIndex: 1 })
+      .lean();
+    
+    if (chunks.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No data found for this session'
+      });
+    }
+    
+    // Create new session ID for normalized data
+    const newSessionId = `${sessionId}_${method}_${Date.now()}`;
+    
+    // Create new session document with reference to original
+    const newSession = await Session.create({
+      sessionId: newSessionId,
+      userId: originalSession.userId,
+      deviceId: originalSession.deviceId,
+      deviceName: `${originalSession.deviceName} (Normalized: ${method})`,
+      deviceType: originalSession.deviceType,
+      startTime: originalSession.startTime,
+      endTime: originalSession.endTime,
+      sampleRate: originalSession.sampleRate,
+      channelCount: originalSession.channelCount,
+      totalSamples: originalSession.totalSamples,
+      status: 'completed',
+      metadata: {
+        ...originalSession.metadata,
+        originalSessionId: sessionId,
+        normalizationMethod: method,
+        normalizationOptions: options,
+        filterApplied: {
+          type: 'Butterworth Bandpass',
+          order: 4,
+          range: originalSession.deviceType === 'IMU' ? '0.5-20 Hz' : '20-400 Hz',
+          deviceType: originalSession.deviceType || 'sEMG'
+        },
+        normalizedAt: new Date()
+      }
+    });
+    
+    // Process and save normalized chunks
+    for (const chunk of chunks) {
+      const { timestamps } = chunk.data;
+      const { channels } = chunk.data;
+      
+      // Convert chunk data to format expected by normalization service
+      const channelData = {};
+      for (const [channelKey, values] of Object.entries(channels)) {
+        channelData[channelKey] = values.map((value, idx) => ({
+          timestamp: timestamps[idx],
+          value: value
+        }));
+      }
+      
+      // Normalize the channel data with bandpass filtering
+      const filterOptions = {
+        deviceType: originalSession.deviceType || 'sEMG',
+        sampleRate: originalSession.sampleRate || 1000
+      };
+      const normalizedChannels = await normalizationService.normalizeChannels(
+        channelData, 
+        method, 
+        options,
+        filterOptions
+      );
+      
+      // Calculate statistics for normalized data
+      const normalizedStats = normalizationService.calculateNormalizedStats(normalizedChannels);
+      
+      // Convert back to chunk format
+      const normalizedChunkData = {
+        timestamps: timestamps,
+        channels: {}
+      };
+      
+      for (const [channelKey, samples] of Object.entries(normalizedChannels)) {
+        normalizedChunkData.channels[channelKey] = samples.map(s => s.value);
+      }
+      
+      // Create new chunk with normalized data
+      await DataChunk.create({
+        sessionId: newSessionId,
+        chunkIndex: chunk.chunkIndex,
+        startTime: chunk.startTime,
+        endTime: chunk.endTime,
+        sampleCount: chunk.sampleCount,
+        data: normalizedChunkData,
+        stats: normalizedStats,
+        createdAt: new Date()
+      });
+    }
+    
+    res.status(201).json({
+      success: true,
+      newSessionId: newSessionId,
+      message: `Session normalized using ${normalizationService.getMethodDescription(method)}`
+    });
+    
+  } catch (error) {
+    console.error('Error normalizing session:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error normalizing session data'
     });
   }
 }));
