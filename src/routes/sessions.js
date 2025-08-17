@@ -393,7 +393,7 @@ router.get('/:sessionId/download', protect, asyncHandler(async (req, res) => {
     
     // Set response headers for CSV download
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     
     // Write CSV header based on device type
     let headers;
