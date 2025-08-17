@@ -491,7 +491,7 @@ router.get('/:sessionId/download', protect, asyncHandler(async (req, res) => {
  */
 router.post('/:sessionId/normalize', protect, asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
-  const { method = 'min_max', options = {} } = req.body;
+  const { method = 'min_max', options = {}, processingType = 'filter-minmax' } = req.body;
   
   try {
     // Validate normalization method
@@ -530,15 +530,24 @@ router.post('/:sessionId/normalize', protect, asyncHandler(async (req, res) => {
       });
     }
     
+    // Validate processing type
+    if (!['minmax-only', 'filter-minmax'].includes(processingType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid processing type. Must be "minmax-only" or "filter-minmax"'
+      });
+    }
+
     // Create new session ID for normalized data
-    const newSessionId = `${sessionId}_${method}_${Date.now()}`;
+    const newSessionId = `${sessionId}_${processingType}_${Date.now()}`;
     
     // Create new session document with reference to original
+    const deviceNameSuffix = processingType === 'filter-minmax' ? ' (FN)' : ' (N)';
     const newSession = await Session.create({
       sessionId: newSessionId,
       userId: originalSession.userId,
       deviceId: originalSession.deviceId,
-      deviceName: `${originalSession.deviceName} (N)`,
+      deviceName: `${originalSession.deviceName}${deviceNameSuffix}`,
       deviceType: originalSession.deviceType,
       sessionType: 'normalized', // Normalized session
       startTime: originalSession.startTime,
@@ -550,14 +559,15 @@ router.post('/:sessionId/normalize', protect, asyncHandler(async (req, res) => {
       metadata: {
         ...originalSession.metadata,
         originalSessionId: sessionId,
+        processingType: processingType,
         normalizationMethod: method,
         normalizationOptions: options,
-        filterApplied: {
+        filterApplied: processingType === 'filter-minmax' ? {
           type: 'Butterworth Bandpass',
           order: 4,
           range: originalSession.deviceType === 'IMU' ? '0.5-20 Hz' : '20-400 Hz',
           deviceType: originalSession.deviceType || 'sEMG'
-        },
+        } : null,
         normalizedAt: new Date()
       }
     });
@@ -576,11 +586,12 @@ router.post('/:sessionId/normalize', protect, asyncHandler(async (req, res) => {
         }));
       }
       
-      // Normalize the channel data with bandpass filtering
-      const filterOptions = {
+      // Normalize the channel data with optional filtering based on processing type
+      const filterOptions = processingType === 'filter-minmax' ? {
         deviceType: originalSession.deviceType || 'sEMG',
         sampleRate: originalSession.sampleRate || 1000
-      };
+      } : null;
+      
       const normalizedChannels = await normalizationService.normalizeChannels(
         channelData, 
         method, 
@@ -617,7 +628,7 @@ router.post('/:sessionId/normalize', protect, asyncHandler(async (req, res) => {
     res.status(201).json({
       success: true,
       newSessionId: newSessionId,
-      message: `Session normalized using ${normalizationService.getMethodDescription(method)}`
+      message: `Session processed using ${processingType === 'minmax-only' ? 'min-max normalization only' : 'filters + min-max normalization'}`
     });
     
   } catch (error) {
